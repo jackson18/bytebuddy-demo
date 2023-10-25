@@ -3,11 +3,14 @@ package cn.javabeanqi.bytebuddy;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.implementation.FixedValue;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+
+import static net.bytebuddy.matcher.ElementMatchers.named;
 
 /**
  * ========================================================
@@ -41,6 +44,30 @@ public class ByteBuddyTest {
                 .subclass(UserService.class)
                 .name("cn.javabeanqi.MyUserService")
                 .make();
+        // 保存获取生成类的字节码
+        unloaded.saveIn(new File(path));
+    }
+
+    /**
+     * 对实例方法进行插桩
+     */
+    @Test
+    public void interceptMethodTest() throws IOException, InstantiationException, IllegalAccessException {
+        // unloaded 代表生成的字节码
+        DynamicType.Unloaded<UserService> unloaded = new ByteBuddy()
+                .subclass(UserService.class)
+                .name("cn.javabeanqi.MyUserService2")
+                .method(named("toString"))
+                .intercept(FixedValue.value("hello world!!!"))
+                .make();
+        // loaded 代表生成的字节码已经加载到jvm
+        DynamicType.Loaded<UserService> loaded = unloaded.load(getClass().getClassLoader());
+        // 获取Class对象
+        Class<? extends UserService> clazz = loaded.getLoaded();
+        UserService userService = clazz.newInstance();
+        String result = userService.toString();
+        System.out.println("result = " + result);
+        System.out.println("clazz.getClassLoader() = " + clazz.getClassLoader());
         // 保存获取生成类的字节码
         unloaded.saveIn(new File(path));
     }
