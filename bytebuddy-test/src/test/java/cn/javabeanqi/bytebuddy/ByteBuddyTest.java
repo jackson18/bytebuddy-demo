@@ -2,6 +2,8 @@ package cn.javabeanqi.bytebuddy;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.NamingStrategy;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.implementation.FixedValue;
 import org.junit.Before;
@@ -11,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
+import static net.bytebuddy.matcher.ElementMatchers.returns;
 
 /**
  * ========================================================
@@ -68,6 +71,33 @@ public class ByteBuddyTest {
         String result = userService.toString();
         System.out.println("result = " + result);
         System.out.println("clazz.getClassLoader() = " + clazz.getClassLoader());
+        // 保存获取生成类的字节码
+        unloaded.saveIn(new File(path));
+    }
+
+    /**
+     * 动态增强的3种方式
+     * 1、subclass 为目标类（即被增强的类）生成一个子类，在子类方法中插入动态代码
+     * 2、rebase 变基，保留原方法 （不再继承）
+     * 3、redefine 原方法不再保留
+     */
+    @Test
+    public void dynamicEnhancedTest() throws IOException {
+        // unloaded 代表生成的字节码
+        DynamicType.Unloaded<UserService> unloaded = new ByteBuddy()
+//                .subclass(UserService.class)
+//                .rebase(UserService.class)
+                .redefine(UserService.class)
+                .name("cn.javabeanqi.MyUserService2")
+                .method(named("queryUser").and(
+                        returns(TypeDescription.CLASS).or(returns(TypeDescription.STRING))
+                ))
+                .intercept(FixedValue.nullValue())
+                .method(named("saveUser").and(
+                        returns(TypeDescription.VOID).or(returns(TypeDescription.VOID))
+                ))
+                .intercept(FixedValue.value(TypeDescription.VOID))
+                .make();
         // 保存获取生成类的字节码
         unloaded.saveIn(new File(path));
     }

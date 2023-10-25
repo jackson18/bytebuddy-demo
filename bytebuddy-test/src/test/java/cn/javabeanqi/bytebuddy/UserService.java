@@ -11,8 +11,12 @@ package cn.javabeanqi.bytebuddy;
  */
 public class UserService {
 
-    public void query() {
+    public String queryUser(String name) {
+        return "hello: " + name;
+    }
 
+    public void saveUser() {
+        System.out.println("save user...");
     }
 
 }
