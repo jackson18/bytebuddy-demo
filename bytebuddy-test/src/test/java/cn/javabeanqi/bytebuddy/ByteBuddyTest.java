@@ -5,7 +5,10 @@ import net.bytebuddy.NamingStrategy;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.DynamicType;
+import net.bytebuddy.implementation.FieldAccessor;
 import net.bytebuddy.implementation.FixedValue;
+import net.bytebuddy.implementation.MethodDelegation;
+import net.bytebuddy.implementation.bind.annotation.Morph;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -119,6 +122,85 @@ public class ByteBuddyTest {
                 // 指定方法的返回
                 .intercept(FixedValue.value("hello new method..."))
                 .make();
+        // 保存获取生成类的字节码
+        unloaded.saveIn(new File(path));
+    }
+
+    /**
+     * 插入新属性
+     */
+    @Test
+    public void insertFieldTest() throws IOException {
+        // unloaded 代表生成的字节码
+        DynamicType.Unloaded<UserService> unloaded = new ByteBuddy()
+                .redefine(UserService.class)
+                .name("cn.javabeanqi.MyUserService4")
+                // 定义属性
+                .defineField("name", String.class, Modifier.PRIVATE)
+                // 定义get\set接口
+                .implement(NameInterface.class)
+                // 生成接口实现
+                .intercept(FieldAccessor.ofField("name"))
+                .make();
+        // 保存获取生成类的字节码
+        unloaded.saveIn(new File(path));
+    }
+
+    /**
+     * 方法委托
+     */
+    @Test
+    public void methodTrustTest() throws IOException, InstantiationException, IllegalAccessException {
+        // unloaded 代表生成的字节码
+        DynamicType.Unloaded<UserService> unloaded = new ByteBuddy()
+                .subclass(UserService.class)
+                .name("cn.javabeanqi.MyUserService5")
+                .method(named("queryUser"))
+                // 委托给 UserInterceptor中与拦截方法同签名的静态方法
+//                .intercept(MethodDelegation.to(UserInterceptor.class))
+                // 委托给UserInterceptor2中与拦截方法同签名的成员方法
+//                .intercept(MethodDelegation.to(new UserInterceptor2()))
+                // 通过 bytebuddy 的注解来指定增强的方法
+                .intercept(MethodDelegation.to(new UserInterceptor3()))
+                .make();
+
+        DynamicType.Loaded<UserService> loaded = unloaded.load(getClass().getClassLoader());
+        Class<? extends UserService> clazz = loaded.getLoaded();
+        UserService userService = clazz.newInstance();
+        String result = userService.queryUser("张三");
+        System.out.println("result = " + result);
+
+        // 保存获取生成类的字节码
+        unloaded.saveIn(new File(path));
+    }
+
+    /**
+     * 动态修改方法入参
+     * 1、自定义 MyCallable
+     * 2、在 UserInterceptor4 中使用 @Morph 代替 @SuperCall
+     * 3、指定拦截器前需要先调用 withBinders
+     */
+    @Test
+    public void updateMethodArgsTest() throws IOException, InstantiationException, IllegalAccessException {
+        // unloaded 代表生成的字节码
+        DynamicType.Unloaded<UserService> unloaded = new ByteBuddy()
+                .subclass(UserService.class)
+                .name("cn.javabeanqi.MyUserService5")
+                .method(named("queryUser"))
+                .intercept(MethodDelegation.
+                        withDefaultConfiguration().
+                        // 指定参数类型是 MyCallable
+                        withBinders(Morph.Binder.install(MyCallable.class)).
+                        to(new UserInterceptor4())
+                )
+                .make();
+
+        DynamicType.Loaded<UserService> loaded = unloaded.load(getClass().getClassLoader());
+        Class<? extends UserService> clazz = loaded.getLoaded();
+        UserService userService = clazz.newInstance();
+        String result = userService.queryUser("张三");
+        System.out.println("result = " + result);
+
         // 保存获取生成类的字节码
         unloaded.saveIn(new File(path));
     }
