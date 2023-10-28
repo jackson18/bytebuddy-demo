@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Modifier;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
@@ -97,6 +98,26 @@ public class ByteBuddyTest {
                         returns(TypeDescription.VOID).or(returns(TypeDescription.VOID))
                 ))
                 .intercept(FixedValue.value(TypeDescription.VOID))
+                .make();
+        // 保存获取生成类的字节码
+        unloaded.saveIn(new File(path));
+    }
+
+    /**
+     * 插入新方法
+     */
+    @Test
+    public void createNewMethodTest() throws IOException {
+        // unloaded 代表生成的字节码
+        DynamicType.Unloaded<UserService> unloaded = new ByteBuddy()
+                .redefine(UserService.class)
+                .name("cn.javabeanqi.MyUserService3")
+                // 方法名、返回类型、修饰符
+                .defineMethod("getUserById", String.class, Modifier.PUBLIC + Modifier.STATIC)
+                // 指定方法的参数
+                .withParameters(Long.class)
+                // 指定方法的返回
+                .intercept(FixedValue.value("hello new method..."))
                 .make();
         // 保存获取生成类的字节码
         unloaded.saveIn(new File(path));
